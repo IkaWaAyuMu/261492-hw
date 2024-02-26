@@ -1,6 +1,5 @@
 #include <pgmspace.h>
-// Amazon Root CA 
-static const char MQTT_CERT[] PROGMEM = R"EOF(
+static const char MQTT_CA[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
