@@ -4,32 +4,32 @@
 # define STATUS_LED_GREEN   26
 # define STATUS_LED_BLUE    27
 
-# define LED_IN1            15
-# define LED_OUT1           14
-# define LED_IN2            13
-# define LED_OUT2           12
+# define LED_IN1            22
+# define LED_OUT1           21
+# define LED_IN2            23
+# define LED_OUT2           19
 
 # define IN1                32
-# define OUT1               33
+# define OUT1               36 //
 # define IN2                34
 # define OUT2               35
 
-# define POT_IN1            22
-# define POT_OUT1           21
-# define POT_IN2            23
-# define POT_OUT2           19
+# define POT_IN1            15
+# define POT_OUT1           14
+# define POT_IN2            13
+# define POT_OUT2           12
 
 # define GPS_RX             4
 # define GPS_TX             2 
 
 // NTP Settings
 
-# define NTP_SERVER         "ntp.cmu.ac.th"
+# define NTP_SERVER         "pool.ntp.org"
 
 // MQTT Settings
 
 # define MQTT_BROKER_PORT       8883
-# define MQTT_CLIENT_ID         "TEST0"
+# define MQTT_CLIENT_ID         "test0"
 # define MQTT_PUBLISHTO_TOPIC   "test"
 
 // GPS Settings
