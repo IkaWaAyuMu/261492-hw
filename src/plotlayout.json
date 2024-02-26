@@ -1,0 +1,275 @@
+{
+   "widgets": [
+      {
+         "type": "single_value_number",
+         "gridPos": {
+            "h": 3,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "PEOPLE",
+               "sourceNames": [
+                  "PEOPLE"
+               ],
+               "formula": "",
+               "options": {
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ],
+         "precision_mode": 0
+      },
+      {
+         "type": "single_value_number",
+         "gridPos": {
+            "h": 3,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "IN",
+               "sourceNames": [
+                  "IN"
+               ],
+               "formula": "",
+               "options": {
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ],
+         "precision_mode": 0
+      },
+      {
+         "type": "single_value_number",
+         "gridPos": {
+            "h": 3,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "OUT",
+               "sourceNames": [
+                  "OUT"
+               ],
+               "formula": "",
+               "options": {
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ],
+         "precision_mode": 0
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 5,
+            "w": 9,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "INSIDE_1",
+               "sourceNames": [
+                  "INSIDE_1"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "INSIDE_1",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "OUTSIDE_1",
+               "sourceNames": [
+                  "OUTSIDE_1"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "OUTSIDE_1",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "BOUNDS_INSIDE_1",
+               "sourceNames": [
+                  "BOUNDS_INSIDE_1"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BOUNDS_INSIDE_1",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "BOUNDS_OUTSIDE_1",
+               "sourceNames": [
+                  "BOUNDS_OUTSIDE_1"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BOUNDS_OUTSIDE_1",
+                  "stroke": "rgba(155,89,182,1)",
+                  "fill": "rgba(155,89,182,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 5,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "STATE_1",
+               "sourceNames": [
+                  "STATE_1"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "STATE_1",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 9,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "INSIDE_2",
+               "sourceNames": [
+                  "INSIDE_2"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "INSIDE_2",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "OUTSIDE_2",
+               "sourceNames": [
+                  "OUTSIDE_2"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "OUTSIDE_2",
+                  "stroke": "rgba(52,152,219,1)",
+                  "fill": "rgba(52,152,219,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "BOUNDS_INSIDE_2",
+               "sourceNames": [
+                  "BOUNDS_INSIDE_2"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BOUNDS_INSIDE_2",
+                  "stroke": "rgba(46,204,113,1)",
+                  "fill": "rgba(46,204,113,0.1)"
+               },
+               "type": "number"
+            },
+            {
+               "name": "BOUNDS_OUTSIDE_2",
+               "sourceNames": [
+                  "BOUNDS_OUTSIDE_2"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "BOUNDS_OUTSIDE_2",
+                  "stroke": "rgba(155,89,182,1)",
+                  "fill": "rgba(155,89,182,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "STATE_2",
+               "sourceNames": [
+                  "STATE_2"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "STATE_2",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      },
+      {
+         "type": "chart",
+         "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "�ets Jul 29 2019 12",
+               "sourceNames": [
+                  "�ets Jul 29 2019 12"
+               ],
+               "formula": "",
+               "options": {
+                  "_serie": "�ets Jul 29 2019 12",
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ]
+      }
+   ],
+   "viewDuration": 15
+}
