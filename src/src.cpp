@@ -5,12 +5,11 @@
 
 #include "utilities.h"
 #include "MQTT_credentials.h"
-#include "MQTT_cert.h"
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 #include <TinyGsmClient.h>
+#include <ESP32Time.h>
 #include <TinyGPSPlus.h>
-#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
@@ -31,11 +30,13 @@ TinyGsm modem(debugger);
 TinyGsm modem(SerialAT);
 #endif
 
-WiFiClientSecure secureWiFiClient;
-PubSubClient mqttClient(secureWiFiClient);
+TinyGsmClient client(modem);
+PubSubClient mqtt(client);
 
 TinyGPSPlus gps;
 SoftwareSerial gpsss(GPS_RX, GPS_TX);
+
+ESP32Time rtc(0);
 
 void writeRGB(int r, int g, int b)
 {
@@ -99,14 +100,16 @@ unsigned short *readPair(short pin0, short pin1)
 
 String ToISO8601String(int year, int month, int day, int hour, int minute, int second, float timezone);
 
-int lastResetYear;
-int lastResetMonth;
-int lastResetDay;
-int lastResetHour;
-int lastResetMinute;
-int lastResetSecond;
+TaskHandle_t Task1 = NULL;
+TaskHandle_t Task2 = NULL;
+
+void read(void *args);
+void send(void *args);
+
+int lastResetYear, lastResetMonth, lastResetDay, lastResetHour, lastResetMinute, lastResetSecond;
 float lastResetTimezone;
 
+JsonDocument locations;
 void setup()
 {
     Serial.begin(115200);
@@ -319,6 +322,11 @@ void setup()
     }
     printTime();
     Serial.println("Time obtained: " + modem.getGSMDateTime(DATE_FULL));
+    int year, month, day, hour, minute, second;
+    float timezone;
+    modem.getNetworkTime(&year, &month, &day, &hour, &minute, &second, &timezone);
+    rtc.setTime(second, minute, hour, day, month, year);
+
     writeRGB(0, 255, 0); // Green
     delay(1000);
 
@@ -331,45 +339,20 @@ void setup()
     // Set MQTT up
 
     writeRGB(255, 255, 0); // Yellow
-    // modem.mqtt_begin(true, true); // SSL, SNI
-    // modem.mqtt_set_certificate(MQTT_CA);
 
-    // printTime();
-    // Serial.println("Connecting to " + String(MQTT_BROKER));
-
-    // bool mqtt_status = modem.mqtt_connect(0, MQTT_BROKER, MQTT_BROKER_PORT, MQTT_CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
-    // while (!mqtt_status || !modem.mqtt_connected())
-    // {
-    //     printTime();
-    //     Serial.println("Failed to connect to " + String(MQTT_BROKER) + ". Trying again in 5 seconds.");
-    //     writeRGB(255, 165, 0); // Orange
-    //     delay(5000);
-    //     mqtt_status = modem.mqtt_connect(0, MQTT_BROKER, MQTT_BROKER_PORT, MQTT_CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
-    // }
-
-    // Connect to wifi
-    WiFi.begin("139/24", "WIFI13924");
     printTime();
-    Serial.print("Connecting to wifi");
+    Serial.println("Connecting to " + String(MQTT_BROKER));
 
-    while (WiFi.status() != WL_CONNECTED)
+    mqtt.setServer(MQTT_BROKER, 1883);
+
+    mqtt.connect(CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
+    while (!mqtt.connected())
     {
-        Serial.print(".");
-        delay(100);
-    }
-    secureWiFiClient.setCACert(MQTT_CA);
-    Serial.println();
-    printTime();
-    Serial.println("Connected to wifi");
-
-    // Connect to MQTT broker
-    mqttClient.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
-    printTime();
-    Serial.println("Connecting to " + String((char *)MQTT_BROKER) + ":" + String(MQTT_BROKER_PORT));
-    while (!mqttClient.connect(MQTT_CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD))
-    {
-        Serial.print(".");
+        printTime();
+        Serial.println("Failed to connect to " + String(MQTT_BROKER) + ". Trying again in 5 seconds.");
+        writeRGB(255, 165, 0); // Orange
         delay(5000);
+        mqtt.connect(CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
     }
 
     printTime();
@@ -378,38 +361,60 @@ void setup()
     delay(1000);
 
     /* STATUS LIGHT
-     * YELLOW    Setting GPS up, waiting for first GPS data
+     * YELLOW    Fetching data.
+     * ORANGE    Retrying
+     * RED       ERROR
      * GREEN     First GPS data received
      */
 
-    // Set GPS up
+    // Get station location
     writeRGB(255, 255, 0); // Yellow
-    // gpsss.begin(GPS_BAUD);
+    modem.https_begin();
 
-    // while (true)
-    // {
-    //     gps.encode(gpsss.read());
-    //     if (gps.location.isValid())
-    //     {
-    //         printTime();
-    //         Serial.print("First GPS data received: ");
-    //         Serial.print(gps.location.lat(), 6);
-    //         Serial.print(", ");
-    //         Serial.println(gps.location.lng(), 6);
-    //         writeRGB(0, 255, 0); // Green
-    //         break;
-    //     }
-    //     else
-    //     {
-    //         printTime();
-    //         Serial.println("No GPS data received yet");
-    //         smartDelay(5000);
-    //     }
-    // }
+    if (!modem.https_set_url((String)LOCATION_ROUTE_URL + "?id=" + String(CLIENT_ID)))
+    {
+        printTime();
+        Serial.println("Failed to set the URL. Please check the validity of the URL!");
+        writeRGB(255, 0, 0); // Red
+        return;
+    }
 
+    int httpStatus = 0;
+    int httpRetryCounter = 0;
+    httpStatus = modem.https_get();
+    while (httpStatus != 200)
+    {
+        writeRGB(255, 165, 0); // Orange
+        printTime();
+        Serial.print("Location fetch failed : ");
+        Serial.println(httpStatus);
+        if (httpRetryCounter++ > 10)
+        {
+            printTime();
+            Serial.println("Failed to fetch location. Please check the server.");
+            writeRGB(255, 0, 0); // Red
+            return;
+        }
+        delay(5000);
+        httpStatus = modem.https_get();
+    }
+    writeRGB(255, 255, 0); // Yellow
+
+    DeserializationError err = deserializeJson(locations, modem.https_body());
+
+    if (err)
+    {
+        printTime();
+        Serial.print("Deserialization error:");
+        Serial.println(err.f_str());
+        writeRGB(255, 0, 0); // Red
+        return;
+    }
+
+    printTime();
+    Serial.println("Location fetched");
+    writeRGB(0, 255, 0); // Green
     delay(1000);
-
-    // TODO: GET STATIONS LOCATION
 
     /* STATUS LIGHT
      * YELLOW    Set other PINs up
@@ -422,10 +427,10 @@ void setup()
     pinMode(OUT1, INPUT);
     pinMode(IN2, INPUT);
     pinMode(OUT2, INPUT);
-    // pinMode(POT_IN1, INPUT);
-    // pinMode(POT_OUT1, INPUT);
-    // pinMode(POT_IN2, INPUT);
-    // pinMode(POT_OUT2, INPUT);
+    pinMode(POT_IN1, INPUT);
+    pinMode(POT_OUT1, INPUT);
+    pinMode(POT_IN2, INPUT);
+    pinMode(POT_OUT2, INPUT);
 
     printTime();
     Serial.println("Pin setup completed");
@@ -435,12 +440,18 @@ void setup()
 
     modem.getNetworkTime(&lastResetYear, &lastResetMonth, &lastResetDay, &lastResetHour, &lastResetMinute, &lastResetSecond, &lastResetTimezone);
 
+    // Create tasks
+
+    xTaskCreatePinnedToCore(read, "Task1", 10000, NULL, 3, &Task1, 0);
+    xTaskCreatePinnedToCore(send, "Task2", 10000, NULL, 2, &Task2, 1);
+
     // End of setup
     printTime();
     Serial.println("Setup completed");
     Serial.println("=============================================");
     Serial.println(" Send 'd' to toggle debug mode (default off)");
     Serial.println(" Send 'r' to reset counters");
+    Serial.println(" Send 's' to force send data to MQTT broker");
     Serial.println("=============================================");
 }
 
@@ -562,6 +573,8 @@ short people = 0;
 short in = 0;
 short out = 0;
 
+bool forceSend = true;
+
 void resetCounters(int year, int month, int day, int hour, int minute, int second, float timezone)
 {
     currentState1 = IDLE;
@@ -585,6 +598,7 @@ void resetCounters(int year, int month, int day, int hour, int minute, int secon
         Serial.print(ToISO8601String(year, month, day, hour, minute, second, timezone));
         Serial.println(", people: " + String(people));
     }
+    forceSend = true;
 }
 
 void setOccupancy(state *currentState)
@@ -637,98 +651,204 @@ unsigned short LED2[2] = {LED_IN2, LED_OUT2};
 
 unsigned int lastSend = 0;
 unsigned const int sendInterval = 300000;
+bool isInStation = false;
+bool isStationForced = false;
 
-void loop()
+void loop() {}
+
+void read(void *args)
 {
-
-    // Get current Time
-    int year;
-    int month;
-    int day;
-    int hour;
-    int minute;
-    int second;
-    int millisecond;
-    float timezone;
-    modem.getNetworkTime(&year, &month, &day, &hour, &minute, &second, &timezone);
-
-    bool forceSend = false;
-
-    // Serial Check
-    if (Serial.available() > 0)
+    while (true)
     {
-        char c = Serial.read();
-        if (c == 'd')
+        // Serial Check
+        if (Serial.available() > 0)
         {
-            debug = !debug;
-            if (debug)
+            char c = Serial.read();
+            if (c == 'd')
             {
-                printTime();
-                Serial.println("Debug mode on");
+                debug = !debug;
+                if (debug)
+                {
+                    printTime();
+                    Serial.println("Debug mode on");
+                }
+                else
+                {
+                    printTime();
+                    Serial.println("Debug mode off");
+                }
             }
-            else
+            else if (c == 'r')
             {
-                printTime();
-                Serial.println("Debug mode off");
+                resetCounters(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
+                forceSend = true;
+            }
+            else if (c == 's')
+            {
+                if (debug)
+                {
+                    printTime();
+                    Serial.println("Forcing send data to MQTT broker");
+                }
+                forceSend = true;
+            }
+            else if (c == 'f')
+            {
+                isStationForced = !isStationForced;
+                if (isStationForced)
+                {
+                    printTime();
+                    Serial.println("Force as in station");
+                }
+                else
+                {
+                    printTime();
+                    Serial.println("Station boundary check on GPS location");
+                }
             }
         }
-        else if (c == 'r')
-            resetCounters(year,  month,  day,  hour,  minute,  second,  timezone);
-        else if (c == 's')
-            forceSend = true;
-    }
 
-    // Perform a reset at midnight (in UTC+7)
-    if ((day + (hour + 7 > 23 ? 1 : 0)) != (lastResetDay + (hour + 7 > 23 ? 1 : 0)) )
-    {
-        resetCounters(year,  month,  day,  hour,  minute,  second,  timezone);
-    }
-
-    // Read sensors
-    unsigned short *distances1 = readPair(IN1, OUT1);
-    // unsigned short *bounds1 = readPair(POT1, POT1);
-    unsigned short bounds1[] = {1800, 1800};
-
-    unsigned short *distances2 = readPair(IN2, OUT2);
-    // unsigned short *bounds2 = readPair(POT2, POT2);
-    unsigned short bounds2[] = {1800, 1800};
-
-    setState(&currentState1, distances1, bounds1, LED1);
-    setState(&currentState2, distances2, bounds2, LED2);
-
-    if (debug)
-    {
-        plotSensor('1', distances1, bounds1, &currentState1);
-        plotSensor('2', distances2, bounds2, &currentState2);
-        Serial.print(">PEOPLE:");
-        Serial.println(people);
-        Serial.print(">IN:");
-        Serial.println(in);
-        Serial.print(">OUT:");
-        Serial.println(out);
-    }
-
-    setOccupancy(&currentState1);
-    setOccupancy(&currentState2);
-
-    free(distances1);
-    // free(bounds1);
-    free(distances2);
-    // free(bounds2);
-
-    // MQTT
-    if (forceSend || (millis() - lastSend > sendInterval) || lastSend == 0)
-    {
-        if (mqttClient.connected())
+        if (isInStation || isStationForced)
         {
+            writeRGB(0, 255, 0); // Green
+            // Read sensors
+            unsigned short *distances1 = readPair(IN1, OUT1);
+            //unsigned short *bounds1 = readPair(POT_IN1, POT_OUT1);
+            unsigned short bounds1[2] = {1800, 1800};
+
+            unsigned short *distances2 = readPair(IN2, OUT2);
+            //unsigned short *bounds2 = readPair(POT_IN2, POT_OUT2);
+            unsigned short bounds2[2] = {1800, 1800};
+
+            setState(&currentState1, distances1, bounds1, LED1);
+            setState(&currentState2, distances2, bounds2, LED2);
+
+            if (debug)
+            {
+                plotSensor('1', distances1, bounds1, &currentState1);
+                plotSensor('2', distances2, bounds2, &currentState2);
+                Serial.print(">PEOPLE:");
+                Serial.println(people);
+                Serial.print(">IN:");
+                Serial.println(in);
+                Serial.print(">OUT:");
+                Serial.println(out);
+            }
+
+            setOccupancy(&currentState1);
+            setOccupancy(&currentState2);
+
+            free(distances1);
+            //free(bounds1);
+            free(distances2);
+            //free(bounds2);
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+
+void send(void *args)
+{
+    while (true)
+    {
+        // Reset at midnight (in UTC+7)
+        if ((rtc.getDay() + (rtc.getHour() + 7 > 23 ? 1 : 0)) != (lastResetDay + (rtc.getHour() + 7 > 23 ? 1 : 0)))
+        {
+            resetCounters(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
+        }
+
+        float latitude = gps.location.isValid() ? gps.location.lat() : 360;
+        float longitude = gps.location.isValid() ? gps.location.lng() : 360;
+        // Check for station boundary
+        if (!isStationForced)
+            if (latitude != 360 && longitude != 360 && locations.size() > 0)
+            {
+                // schema
+                // [
+                // {
+                // "station_id": int,
+                // "start_lat": float,
+                // "start_lon": float,
+                // "end_lat": float,
+                // "end_lon": float
+                // }, ...
+                // ]
+                for (int i = 0; i < locations.size(); i++)
+                {
+                    float start_lat = locations[i]["start_lat"];
+                    float start_lon = locations[i]["start_lon"];
+                    float end_lat = locations[i]["end_lat"];
+                    float end_lon = locations[i]["end_lon"];
+                    if (gps.location.lat() > start_lat && gps.location.lat() < end_lat && gps.location.lng() > start_lon && gps.location.lng() < end_lon)
+                    {
+                        if (!isInStation)
+                        {
+                            isInStation = true;
+                            if (debug)
+                            {
+                                printTime();
+                                Serial.println("Entered station");
+                            }
+                            forceSend = true;
+                        }
+                    }
+                    else
+                    {
+                        if (isInStation)
+                        {
+                            isInStation = false;
+                            if (debug)
+                            {
+                                printTime();
+                                Serial.println("Exited station");
+                            }
+                            forceSend = true;
+                            writeRGB(0, 0, 0);
+                        }
+                    }
+                }
+            }
+        // MQTT
+        if (debug)
+        {
+            Serial.print(">time_from_lastsend:");
+            Serial.println(pdTICKS_TO_MS(xTaskGetTickCount()) - lastSend);
+        }
+        if (forceSend || (pdTICKS_TO_MS(xTaskGetTickCount()) - lastSend > sendInterval))
+        {
+            writeRGB(0, 0, 255); // Red
+            modem.sleepEnable(false);
+            while (!modem.testAT())
+            {
+                if(debug)
+                {
+                    printTime();
+                    Serial.print("Waiting for modem to wake up");
+                }
+                delay(500);
+            }
+
+            writeRGB(255, 165, 0); // Orange
+            while (!mqtt.connected())
+            {
+                if (debug)
+                {
+                    printTime();
+                    Serial.println("Reconnecting to MQTT broker");
+                }
+                mqtt.connect(CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
+            }
+            writeRGB(0, 0, 255); // Blue
             JsonDocument doc;
 
-            doc["id"] = MQTT_CLIENT_ID;
-            doc["time"] = ToISO8601String(year, month, day, hour, minute, second, timezone);
+            doc["id"] = CLIENT_ID;
+            doc["time"] = ToISO8601String(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
             doc["lastReset"] = ToISO8601String(lastResetYear, lastResetMonth, lastResetDay, lastResetHour, lastResetMinute, lastResetSecond, lastResetTimezone);
             JsonObject location = doc["location"].to<JsonObject>();
-            location["latitude"] = 00.0;
-            location["longitude"] = 00.0;
+            if (latitude != 360)
+                location["latitude"] = latitude;
+            if (longitude != 360)
+                location["longitude"] = longitude;
             JsonObject data = doc["data"].to<JsonObject>();
             data["enter"] = in;
             data["exit"] = out;
@@ -736,7 +856,7 @@ void loop()
 
             String output;
             serializeJson(doc, output);
-            mqttClient.publish(MQTT_PUBLISHTO_TOPIC, output.c_str());
+            mqtt.publish(MQTT_PUBLISHTO_TOPIC, output.c_str());
 
             if (debug)
             {
@@ -744,15 +864,16 @@ void loop()
                 Serial.println("Published to " + String(MQTT_PUBLISHTO_TOPIC) + " as\n" + output);
             }
 
-            lastSend = millis();
+            lastSend = pdTICKS_TO_MS(xTaskGetTickCount());
             forceSend = false;
+            modem.sleepEnable(true);
+            if (debug)
+            {
+                printTime();
+                Serial.println("Modem is going to sleep");
+            }
         }
-        else if (!mqttClient.connected())
-        {
-            printTime();
-            Serial.println("Reconnecting to MQTT broker");
-            if (!mqttClient.connect(MQTT_CLIENT_ID, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD)) lastSend += 10000; // Retry in 10 seconds
-        }
+        vTaskDelay(pdMS_TO_TICKS(3000));
     }
 }
 

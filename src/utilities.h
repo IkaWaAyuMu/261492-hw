@@ -22,23 +22,26 @@
 # define GPS_RX             4
 # define GPS_TX             2 
 
+// Client ID
+
+# define CLIENT_ID          "test0"
+
 // NTP Settings
 
 # define NTP_SERVER         "pool.ntp.org"
 
 // MQTT Settings
 
-# define MQTT_BROKER_PORT       8883
-# define MQTT_CLIENT_ID         "test0"
+# define MQTT_BROKER_PORT       1883
 # define MQTT_PUBLISHTO_TOPIC   "test"
 
 // GPS Settings
 
 # define GPS_BAUD           9600
 
-// Device Settings
+// HtTP GET location
 
-# define ROUTEID            "0"
+# define LOCATION_ROUTE_URL         "http://128.199.248.64:3000/location"
 
 // Modem Settings
 
