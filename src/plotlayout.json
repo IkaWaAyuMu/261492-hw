@@ -245,30 +245,6 @@
                "type": "number"
             }
          ]
-      },
-      {
-         "type": "chart",
-         "gridPos": {
-            "h": 6,
-            "w": 6,
-            "x": 0,
-            "y": 0
-         },
-         "series": [
-            {
-               "name": "�ets Jul 29 2019 12",
-               "sourceNames": [
-                  "�ets Jul 29 2019 12"
-               ],
-               "formula": "",
-               "options": {
-                  "_serie": "�ets Jul 29 2019 12",
-                  "stroke": "rgba(231,76,60,1)",
-                  "fill": "rgba(231,76,60,0.1)"
-               },
-               "type": "number"
-            }
-         ]
       }
    ],
    "viewDuration": 15
