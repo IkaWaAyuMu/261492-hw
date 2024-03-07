@@ -3,8 +3,80 @@
       {
          "type": "single_value_number",
          "gridPos": {
+            "h": 2,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "time_from_lastsend",
+               "sourceNames": [
+                  "time_from_lastsend"
+               ],
+               "formula": "",
+               "options": {
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ],
+         "precision_mode": 1
+      },
+      {
+         "type": "single_value_number",
+         "gridPos": {
+            "h": 2,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Latitude",
+               "sourceNames": [
+                  "Latitude"
+               ],
+               "formula": "",
+               "options": {
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ],
+         "precision_mode": 2
+      },
+      {
+         "type": "single_value_number",
+         "gridPos": {
+            "h": 2,
+            "w": 6,
+            "x": 0,
+            "y": 0
+         },
+         "series": [
+            {
+               "name": "Longitude",
+               "sourceNames": [
+                  "Longitude"
+               ],
+               "formula": "",
+               "options": {
+                  "stroke": "rgba(231,76,60,1)",
+                  "fill": "rgba(231,76,60,0.1)"
+               },
+               "type": "number"
+            }
+         ],
+         "precision_mode": 2
+      },
+      {
+         "type": "single_value_number",
+         "gridPos": {
             "h": 3,
-            "w": 3,
+            "w": 4,
             "x": 0,
             "y": 0
          },
@@ -28,7 +100,7 @@
          "type": "single_value_number",
          "gridPos": {
             "h": 3,
-            "w": 3,
+            "w": 4,
             "x": 0,
             "y": 0
          },
@@ -52,7 +124,7 @@
          "type": "single_value_number",
          "gridPos": {
             "h": 3,
-            "w": 3,
+            "w": 4,
             "x": 0,
             "y": 0
          },
