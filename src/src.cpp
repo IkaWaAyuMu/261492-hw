@@ -38,6 +38,8 @@ SoftwareSerial gpsss(GPS_RX, GPS_TX);
 
 ESP32Time rtc(0);
 
+bool debug = false;
+
 void writeRGB(int r, int g, int b)
 {
     ledcWrite(0, 255 - r);
@@ -56,12 +58,12 @@ void printTime()
 // is being "fed".
 void smartDelay(unsigned long ms)
 {
-    unsigned long start = millis();
+    unsigned long start = pdTICKS_TO_MS(xTaskGetTickCount());
     do
     {
         while (gpsss.available())
             gps.encode(gpsss.read());
-    } while (millis() - start < ms);
+    } while (pdTICKS_TO_MS(xTaskGetTickCount()) - start < ms);
 }
 
 // Read analog pin and return the median value of the last n readings.
@@ -417,6 +419,14 @@ void setup()
     delay(1000);
 
     /* STATUS LIGHT
+     * GREEN     GPS ready
+     */
+
+    writeRGB(0, 255, 0); // Green
+    gpsss.begin(9600);
+    delay(1000);
+
+    /* STATUS LIGHT
      * YELLOW    Set other PINs up
      * GREEN     PINs ready
      */
@@ -436,14 +446,7 @@ void setup()
     Serial.println("Pin setup completed");
     writeRGB(0, 255, 0); // Green
 
-    smartDelay(1000);
-
     modem.getNetworkTime(&lastResetYear, &lastResetMonth, &lastResetDay, &lastResetHour, &lastResetMinute, &lastResetSecond, &lastResetTimezone);
-
-    // Create tasks
-
-    xTaskCreatePinnedToCore(read, "Task1", 10000, NULL, 3, &Task1, 0);
-    xTaskCreatePinnedToCore(send, "Task2", 10000, NULL, 2, &Task2, 1);
 
     // End of setup
     printTime();
@@ -453,9 +456,12 @@ void setup()
     Serial.println(" Send 'r' to reset counters");
     Serial.println(" Send 's' to force send data to MQTT broker");
     Serial.println("=============================================");
-}
 
-bool debug = false;
+    // Create tasks
+
+    xTaskCreatePinnedToCore(read, "Task1", 10000, NULL, 1, &Task1, 0);
+    xTaskCreatePinnedToCore(send, "Task2", 10000, NULL, 2, &Task2, 1);
+}
 
 // State machine states
 enum state
@@ -713,11 +719,11 @@ void read(void *args)
             writeRGB(0, 255, 0); // Green
             // Read sensors
             unsigned short *distances1 = readPair(IN1, OUT1);
-            //unsigned short *bounds1 = readPair(POT_IN1, POT_OUT1);
+            // unsigned short *bounds1 = readPair(POT_IN1, POT_OUT1);
             unsigned short bounds1[2] = {1800, 1800};
 
             unsigned short *distances2 = readPair(IN2, OUT2);
-            //unsigned short *bounds2 = readPair(POT_IN2, POT_OUT2);
+            // unsigned short *bounds2 = readPair(POT_IN2, POT_OUT2);
             unsigned short bounds2[2] = {1800, 1800};
 
             setState(&currentState1, distances1, bounds1, LED1);
@@ -739,9 +745,9 @@ void read(void *args)
             setOccupancy(&currentState2);
 
             free(distances1);
-            //free(bounds1);
+            // free(bounds1);
             free(distances2);
-            //free(bounds2);
+            // free(bounds2);
         }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
@@ -757,9 +763,21 @@ void send(void *args)
             resetCounters(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
         }
 
+        while (gpsss.available() > 0)
+            (gps.encode(gpsss.read()));
+
         float latitude = gps.location.isValid() ? gps.location.lat() : 360;
         float longitude = gps.location.isValid() ? gps.location.lng() : 360;
+
+        if (debug)
+        {
+            Serial.print(">Latitude:");
+            Serial.println(latitude, 6);
+            Serial.print(">Longitude:");
+            Serial.println(longitude, 6);
+        }
         // Check for station boundary
+
         if (!isStationForced)
             if (latitude != 360 && longitude != 360 && locations.size() > 0)
             {
@@ -773,13 +791,32 @@ void send(void *args)
                 // "end_lon": float
                 // }, ...
                 // ]
+
                 for (int i = 0; i < locations.size(); i++)
                 {
                     float start_lat = locations[i]["start_lat"];
                     float start_lon = locations[i]["start_lon"];
                     float end_lat = locations[i]["end_lat"];
                     float end_lon = locations[i]["end_lon"];
-                    if (gps.location.lat() > start_lat && gps.location.lat() < end_lat && gps.location.lng() > start_lon && gps.location.lng() < end_lon)
+                    if (debug)
+                    {
+                    printTime();
+                    Serial.print("Comparing : (");
+                    Serial.print(start_lat, 6);
+                    Serial.print(", ");
+                    Serial.print(start_lon, 6);
+                    Serial.print(") and (");
+                    Serial.print(end_lat, 6);
+                    Serial.print(", ");
+                    Serial.print(end_lon, 6);
+                    Serial.print(") with (");
+                    Serial.print(latitude, 6);
+                    Serial.print(", ");
+                    Serial.print(longitude, 6);
+                    Serial.print(") Result ");
+                    Serial.println((latitude >= start_lat && latitude <= end_lat && longitude >= start_lon && longitude <= end_lon) ? "True" : "False");
+                    }
+                    if (latitude >= start_lat && latitude <= end_lat && longitude >= start_lon && longitude <= end_lon)
                     {
                         if (!isInStation)
                         {
@@ -790,6 +827,7 @@ void send(void *args)
                                 Serial.println("Entered station");
                             }
                             forceSend = true;
+                            break;
                         }
                     }
                     else
@@ -804,10 +842,16 @@ void send(void *args)
                             }
                             forceSend = true;
                             writeRGB(0, 0, 0);
+                            break;
                         }
                     }
                 }
             }
+        if (debug)
+        {
+            Serial.print(">is_station:");
+            Serial.println(isInStation || isStationForced);
+        }
         // MQTT
         if (debug)
         {
@@ -820,7 +864,7 @@ void send(void *args)
             modem.sleepEnable(false);
             while (!modem.testAT())
             {
-                if(debug)
+                if (debug)
                 {
                     printTime();
                     Serial.print("Waiting for modem to wake up");
@@ -873,7 +917,7 @@ void send(void *args)
                 Serial.println("Modem is going to sleep");
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(3000));
+        smartDelay(3000);
     }
 }
 
