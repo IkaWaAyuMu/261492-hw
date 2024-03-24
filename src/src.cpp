@@ -95,8 +95,8 @@ unsigned short analogDownsamplingReadMedian(uint8_t pin, unsigned int samplingRa
 unsigned short *readPair(short pin0, short pin1)
 {
     unsigned short *result = (unsigned short *)malloc(2 * sizeof(short));
-    result[0] = analogDownsamplingReadMedian(pin0);
-    result[1] = analogDownsamplingReadMedian(pin1);
+    result[0] = analogDownsamplingReadMedian(pin0, 10);
+    result[1] = analogDownsamplingReadMedian(pin1, 10);
     return result;
 }
 
@@ -720,11 +720,11 @@ void read(void *args)
             // Read sensors
             unsigned short *distances1 = readPair(IN1, OUT1);
             // unsigned short *bounds1 = readPair(POT_IN1, POT_OUT1);
-            unsigned short bounds1[2] = {1800, 1800};
+            unsigned short bounds1[2] = {2500, 2500};
 
             unsigned short *distances2 = readPair(IN2, OUT2);
             // unsigned short *bounds2 = readPair(POT_IN2, POT_OUT2);
-            unsigned short bounds2[2] = {1800, 1800};
+            unsigned short bounds2[2] = {2500, 2500};
 
             setState(&currentState1, distances1, bounds1, LED1);
             setState(&currentState2, distances2, bounds2, LED2);
