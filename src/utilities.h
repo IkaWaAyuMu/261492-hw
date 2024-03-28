@@ -24,7 +24,7 @@
 
 // Client ID
 
-# define CLIENT_ID          "test0"
+# define CLIENT_ID          "33"
 
 // NTP Settings
 
@@ -33,7 +33,7 @@
 // MQTT Settings
 
 # define MQTT_BROKER_PORT       1883
-# define MQTT_PUBLISHTO_TOPIC   "test"
+# define MQTT_PUBLISHTO_TOPIC   "bus"
 
 // GPS Settings
 
