@@ -686,7 +686,7 @@ void read(void *args)
             }
             else if (c == 'r')
             {
-                resetCounters(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
+                resetCounters(rtc.getYear(), rtc.getMonth() + 1, rtc.getDay(), rtc.getHour(true), rtc.getMinute(), rtc.getSecond(), 0);
                 forceSend = true;
             }
             else if (c == 's')
@@ -758,9 +758,9 @@ void send(void *args)
     while (true)
     {
         // Reset at midnight (in UTC+7)
-        if ((rtc.getDay() + (rtc.getHour() + 7 > 23 ? 1 : 0)) != (lastResetDay + (rtc.getHour() + 7 > 23 ? 1 : 0)))
+        if ((rtc.getDay() + (rtc.getHour(true) + 7 > 23 ? 1 : 0)) != (lastResetDay + (rtc.getHour(true) + 7 > 23 ? 1 : 0)))
         {
-            resetCounters(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
+            resetCounters(rtc.getYear(), rtc.getMonth() + 1, rtc.getDay(), rtc.getHour(true), rtc.getMinute(), rtc.getSecond(), 0);
         }
 
         while (gpsss.available() > 0)
@@ -827,13 +827,11 @@ void send(void *args)
                                 Serial.println("Entered station");
                             }
                             forceSend = true;
-                            break;
                         }
+                        break;
                     }
-                    else
+                    else if (i==locations.size() -1 && isInStation)
                     {
-                        if (isInStation)
-                        {
                             isInStation = false;
                             if (debug)
                             {
@@ -843,7 +841,6 @@ void send(void *args)
                             forceSend = true;
                             writeRGB(0, 0, 0);
                             break;
-                        }
                     }
                 }
             }
@@ -886,7 +883,7 @@ void send(void *args)
             JsonDocument doc;
 
             doc["id"] = CLIENT_ID;
-            doc["time"] = ToISO8601String(rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHour(), rtc.getMinute(), rtc.getSecond(), 0);
+            doc["time"] = ToISO8601String(rtc.getYear(), rtc.getMonth() + 1, rtc.getDay(), rtc.getHour(true), rtc.getMinute(), rtc.getSecond(), 0);
             doc["lastReset"] = ToISO8601String(lastResetYear, lastResetMonth, lastResetDay, lastResetHour, lastResetMinute, lastResetSecond, lastResetTimezone);
             JsonObject location = doc["location"].to<JsonObject>();
             if (latitude != 360)
